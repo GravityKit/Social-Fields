@@ -2,9 +2,9 @@
 /*
 Plugin Name: Gravity Forms Social Profiles Validator
 Plugin URI: https://katz.co
-Description: Validate Twitter and Facebook fields in Gravity Forms by using `validate-twitter` or `validate-facebook` field   class names
+Description: Validate fields
 Author: Katz Web Services, Inc.
-Version: 0.1
+Version: 0.2
 Author URI: http://katzwebservices.com
 */
 
@@ -49,7 +49,15 @@ class KWS_GF_Validate_Social {
 
         if(trim(rtrim($value)) === '') { return true; }
 
-        return preg_match('/^@?[A-Za-z0-9_]{1,15}$/', $value);
+        if(!preg_match('/^@?[A-Za-z0-9_]{1,15}$/', $value)) { return false; }
+
+        if(apply_filters( 'kws_gf_validate_twitter_url', true )) {
+
+            // Use head, since it might be faster.
+            $response = $this->get_url('https://twitter.com/'.$value, 'HEAD');
+
+            return wp_remote_retrieve_response_code( $response ) !== 404;
+        }
     }
 
     /**
@@ -80,7 +88,9 @@ class KWS_GF_Validate_Social {
 
         $fb_url = sprintf('https://graph.facebook.com/%s', $account);
 
-        $json_txt = $this->get_url($fb_url);
+        $response = $this->get_url($fb_url);
+
+        $json_txt = wp_remote_retrieve_body( $response );
 
         $json = json_decode($json_txt, true);
 
@@ -88,7 +98,12 @@ class KWS_GF_Validate_Social {
         return (false == (!empty($json['error']) && (int)$json['error']['code'] === 803));
     }
 
-    function get_url($url) {
+    /**
+     * Fetch remote URL for the validators
+     * @param  string $url URL to fetch
+     * @return array      WordPress response array
+     */
+    function get_url($url, $method = 'GET') {
 
         $cache_key = 'gfvl'.sha1($url);
 
@@ -96,14 +111,16 @@ class KWS_GF_Validate_Social {
 
         if($response === false) {
 
-            $request = wp_remote_get( $url, array(
+            $response = wp_remote_request( $url, array(
                 'timeout' => 10,
-                'sslverify' => false
+                'sslverify' => false,
+                'method' => $method
             ));
 
-            if(!is_wp_error( $request )) {
-                $response = wp_remote_retrieve_body( $request );
-
+            // If it's an error, set null transient
+            if(is_wp_error( $response )) {
+                set_transient( $cache_key, NULL, WEEK_IN_SECONDS );
+            } else {
                 set_transient( $cache_key, $response, WEEK_IN_SECONDS );
             }
         }
