@@ -1,7 +1,7 @@
 Gravity Forms Social Profiles Validator
 =======================================
 
-A WordPress plugin. Requires [Graivty Forms](http://katz.si/gf).
+A WordPress plugin. Requires [Gravity Forms](https://gravityview.co/gravityforms).
 
 Validate social profile accounts by specifying a CSS Class Name for fields.
 
