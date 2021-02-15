@@ -1,18 +1,19 @@
 <?php
 
+namespace GV;
+
 /**
  * Class for validating social profiles.
  *
  * Add "CSS Class Name" field settings to validate a form in the format of "validate-{service}":
  *
  * Examples:
- *
- *     * validate-twitter
- *     * validate-facebook
+ *  - validate-twitter
+ *  - validate-facebook
  *
  * @link http://pastie.org/1769048 Original Gravity Forms code.
  */
-class KWS_GF_Validate_Social {
+class Validate_Social_Profiles {
 
 	var $accounts = array();
 
@@ -21,22 +22,32 @@ class KWS_GF_Validate_Social {
 		/**
 		 * Tap in here to modify what accounts are validated.
 		 *
-		 * @var [type]
+		 * Each account has `gravityview/social_fields/profile/is_valid/{$key}` filters dynamically created.
+		 *
+		 * @var string[] Types of accounts to validate.
 		 */
-		$this->accounts = apply_filters( 'kws_gf_validate_social_accounts', array(
+		$this->accounts = apply_filters( 'gravityview/social_fields/accounts', array(
 			'twitter',
 			'facebook',
 		) );
 
 		// 1 - Tie our validation function to the 'gform_validation' hook
-		add_filter( 'gform_validation', array( &$this, 'validate_form' ) );
+		add_filter( 'gform_validation', array( $this, 'validate_form' ) );
 
-		add_filter( 'kws_gf_is_valid_twitter', array( &$this, 'is_valid_twitter' ), 10, 2 );
+		add_filter( 'gravityview/social_fields/profile/twitter/is_valid', array( $this, 'is_valid_twitter' ), 10, 2 );
 
-		add_filter( 'kws_gf_is_valid_facebook', array( &$this, 'is_valid_facebook' ), 10, 2 );
+		add_filter( 'gravityview/social_fields/profile/facebook/is_valid', array( $this, 'is_valid_facebook' ), 10, 2 );
 
 	}
 
+	/**
+	 * Verifies Twitter account
+	 *
+	 * @param bool   $bool Is the submitted value valid? Default: true.
+	 * @param string $value The submitted value to verify.
+	 *
+	 * @return bool True: Account is valid or empty. False: account is invalid.
+	 */
 	function is_valid_twitter( $bool, $value ) {
 
 		if ( trim( rtrim( $value ) ) === '' ) {
@@ -47,24 +58,30 @@ class KWS_GF_Validate_Social {
 			return false;
 		}
 
-		if ( apply_filters( 'kws_gf_validate_twitter_url', true ) ) {
+		if ( apply_filters( 'gravityview/social_fields/profile/twitter/verify_remote', true ) ) {
 
 			// Use head, since it might be faster.
 			$response = $this->get_url( 'https://twitter.com/' . $value, 'HEAD' );
 
+			if ( is_wp_error( $response ) ) {
+				return true;
+			}
+
 			return wp_remote_retrieve_response_code( $response ) !== 404;
 		}
+
+		return true;
 	}
 
 	/**
 	 * Check Facebook Graph for account
 	 *
-	 * @param  [type]  $bool  [description]
-	 * @param  [type]  $value [description]
+	 * @param bool   $bool Is the submitted value valid? Default: true.
+	 * @param string $value The submitted value to verify.
 	 *
-	 * @return boolean        [description]
+	 * @return bool True: Account is valid or empty. False: account is invalid.
 	 */
-	function is_valid_facebook( $bool, $value ) {
+	public function is_valid_facebook( $bool, $value ) {
 
 		if ( trim( rtrim( $value ) ) === '' ) {
 			return true;
@@ -89,6 +106,11 @@ class KWS_GF_Validate_Social {
 
 		$response = $this->get_url( $fb_url );
 
+		// The request shouldn't cause an error; this likely has nothing to do with valid profile URL or not.
+		if ( is_wp_error( $response ) ) {
+			return true;
+		}
+
 		$json_txt = wp_remote_retrieve_body( $response );
 
 		$json = json_decode( $json_txt, true );
@@ -102,15 +124,15 @@ class KWS_GF_Validate_Social {
 	 *
 	 * @param string $url URL to fetch
 	 *
-	 * @return array      WordPress response array
+	 * @return array|\WP_Error WordPress response array or error
 	 */
 	function get_url( $url, $method = 'GET' ) {
 
-		$cache_key = 'gfvl' . sha1( $url );
+		$cache_key = 'gvsfp' . sha1( $url );
 
 		$response = get_transient( $cache_key );
 
-		if ( $response === false ) {
+		if ( false === $response ) {
 
 			$response = wp_remote_request( $url, array(
 				'timeout'   => 10,
@@ -130,13 +152,17 @@ class KWS_GF_Validate_Social {
 	}
 
 	/**
-	 * Check whether a field has the
+	 * Check whether a field has the `validate-{account}` CSS class.
 	 *
-	 * @param  [type] $field [description]
+	 * @param \GF_Field $field Field to check for the class existing.
 	 *
-	 * @return string|boolean        If field has validation, return string key, otherwise false.
+	 * @return string|boolean   If field has validation, return string key, otherwise false.
 	 */
 	function get_field_validation_class( $field ) {
+
+		if ( empty( $field['cssClass'] ) ) {
+			return false;
+		}
 
 		foreach ( (array) $this->accounts as $account ) {
 			$validate_css_class = sprintf( 'validate-%s', $account );
@@ -156,10 +182,23 @@ class KWS_GF_Validate_Social {
 		return false;
 	}
 
-	function validate_form( $validation_result ) {
+	/**
+	 * Validates the form.
+	 *
+	 * Check each field for the social profiles Custom CSS class. If exists, validates.
+	 *
+	 * @param  array $validation_result {
+	 *   @type bool $is_valid
+	 *   @type array $form
+	 *   @type int $failed_validation_page The page number which has failed validation.
+	 * }
+	 *
+	 * @return mixed
+	 */
+	public function validate_form( $validation_result ) {
 
 		// 2 - Get the form object from the validation result
-		$form = $validation_result["form"];
+		$form = $validation_result['form'];
 
 		// 3 - Get the current page being validated
 		$current_page = rgpost( 'gform_source_page_number_' . $form['id'] ) ? rgpost( 'gform_source_page_number_' . $form['id'] ) : 1;
@@ -172,13 +211,15 @@ class KWS_GF_Validate_Social {
 			}
 
 			// 6 - Get the field's page number
-			$field_page = $field['pageNumber'];
+			if ( (int) $field['pageNumber'] !== (int) $current_page ) {
+				continue;
+			}
 
 			// 7 - Check if the field is hidden by GF conditional logic
-			$is_hidden = RGFormsModel::is_field_hidden( $form, $field, array() );
+			$is_hidden = \RGFormsModel::is_field_hidden( $form, $field, array() );
 
 			// 8 - If the field is not on the current page OR if the field is hidden, skip it
-			if ( $field_page != $current_page || $is_hidden ) {
+			if ( $is_hidden ) {
 				continue;
 			}
 
@@ -218,21 +259,29 @@ class KWS_GF_Validate_Social {
 	 */
 	function get_invalid_message( $key ) {
 
-		$messages = apply_filters( 'kws_gf_validate_social_invalid_message', array(
-			'twitter'  => __( 'The Twitter account is not valid', 'kws-gf-validate-social' ),
-			'facebook' => __( 'This is not a valid Facebook page or account.', 'kws-gf-validate-social' )
+		$messages = apply_filters( 'gravityview/social_fields/profiles/invalid_message', array(
+			'twitter'  => __( 'The Twitter account is not valid', 'gravityview-social-fields' ),
+			'facebook' => __( 'This is not a valid Facebook page or account.', 'gravityview-social-fields' )
 		) );
 
-		return isset( $messages[ $key ] ) ? $messages[ $key ] : 'The value for this field is invalid';
+		return isset( $messages[ $key ] ) ? $messages[ $key ] : __( 'The value for this field is invalid', 'gravityview-social-fields' );
 	}
 
+	/**
+	 * Runs apply_filters() to validate the field content.
+	 *
+	 * @param string $key Social profile key ('facebook', 'twitter').
+	 * @param string $value Submitted value.
+	 *
+	 * @return bool True: valid; False: invalid.
+	 */
 	function is_valid( $key, $value ) {
 
 		$key = esc_attr( $key );
 
-		return (bool) apply_filters( 'kws_gf_is_valid_' . $key, true, $value );
+		return (bool) apply_filters( 'gravityview/social_fields/profile/' . $key . '/is_valid', true, $value );
 	}
 
 }
 
-new KWS_GF_Validate_Social;
+new Validate_Social_Profiles;
