@@ -20,6 +20,28 @@ class GF_Field_Tweet extends \GF_Field_Website {
 		add_filter( 'gravityview/template/field/tweet/output', array( $this, 'filter_gravityview_output' ), 10, 2 );
 
 		add_filter( 'gravityview_template_tweet_options', array( $this, 'modify_gravityview_field_options' ) );
+
+		add_action( 'gform_after_update_entry', array( $this, 'clear_cache' ), 10, 2 );
+	}
+
+	/**
+	 * Clears the cached tweet when the entry is updated
+	 *
+	 * @param array $form Gravity Forms form "object" array.
+	 * @param int $entry_id ID of the entry that has been updated.
+	 *
+	 * @return void
+	 */
+	public function clear_cache( $form, $entry_id ) {
+
+		$fields = \GFAPI::get_fields_by_type( $form, $this->type );
+
+		foreach ( $fields as $gf_field ) {
+			$meta_key = self::get_tweet_cache_meta_key( $form['id'], $gf_field->id );
+
+			gform_delete_meta( $entry_id, $meta_key );
+		}
+
 	}
 
 	/**
@@ -86,7 +108,7 @@ class GF_Field_Tweet extends \GF_Field_Website {
 	 */
 	protected function get_tweet_embed( $context, $use_cache = true, $set_cache = true ) {
 
-		$meta_key = self::get_tweet_cache_meta_key( $context );
+		$meta_key = self::get_tweet_cache_meta_key( $context->field->field->formId, $context->field->ID );
 
 		if ( $use_cache ) {
 
@@ -112,15 +134,14 @@ class GF_Field_Tweet extends \GF_Field_Website {
 	}
 
 	/**
-	 * @param Template_Context The template context this is being called from.
+	 * Generates the meta key format used to store the oEmbed code for the tweet
+	 *
+	 * @param int $form_id ID of the form the field is connected to.
+	 * @param int $field_id ID of the Tweet field we're storing the cached tweet for.
 	 *
 	 * @return string key used to store oEmbed HTML of rendered tweet
 	 */
-	public static function get_tweet_cache_meta_key( $context ) {
-
-		$form_id = $context->field->field->formId;
-		$field_id = $context->field->ID;
-
+	public static function get_tweet_cache_meta_key( $form_id, $field_id ) {
 		return sprintf( 'tweet_output_%d:%d', $form_id, $field_id );
 	}
 

@@ -37,7 +37,6 @@ class Validate_Social_Profiles {
 		add_filter( 'gravityview/social_fields/profile/twitter/is_valid', array( $this, 'is_valid_twitter' ), 10, 2 );
 
 		add_filter( 'gravityview/social_fields/profile/facebook/is_valid', array( $this, 'is_valid_facebook' ), 10, 2 );
-
 	}
 
 	/**
