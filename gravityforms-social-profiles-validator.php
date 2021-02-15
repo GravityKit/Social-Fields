@@ -8,6 +8,9 @@ Version: 0.2
 Author URI: http://katzwebservices.com
 */
 
+add_action( 'gform_loaded', function () {
+	include plugin_dir_path( __FILE__ ) . 'class-gv-gf-field-tweet.php';
+});
 
 /**
  * Class for validating social profiles.
