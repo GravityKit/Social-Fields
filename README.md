@@ -1,9 +1,11 @@
-Gravity Forms Social Profiles Validator
+Social Fields for Gravity Forms
 =======================================
 
 A WordPress plugin. Requires [Gravity Forms](https://gravityview.co/gravityforms).
 
-Validate social profile accounts by specifying a CSS Class Name for fields.
+- Validate social profile account names
+- Verify tweet URLS
+- Embed tweets as oEmbed in GravityView
 
 ### Usage
 
