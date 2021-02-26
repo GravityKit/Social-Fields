@@ -22,6 +22,8 @@ class GF_Field_Tweet extends \GF_Field_Website {
 		add_filter( 'gravityview_template_tweet_options', array( $this, 'modify_gravityview_field_options' ) );
 
 		add_action( 'gform_after_update_entry', array( $this, 'clear_cache' ), 10, 2 );
+
+		add_filter( 'gform_entry_field_value', array( $this, 'filter_gf_entry_output' ), 10, 4 );
 	}
 
 	/**
@@ -92,9 +94,32 @@ class GF_Field_Tweet extends \GF_Field_Website {
 			$use_cache =  ! isset( $_GET['cache'] ) && ! isset( $_GET['nocache'] );
 		}
 
-		$embed_code = $this->get_tweet_embed( $context, $use_cache, $use_cache );
+		$embed_code = $this->get_tweet_embed( $context->value, $context->entry['id'], $context->field->field->formId, $context->field->ID, $use_cache, $use_cache );
 
 		return $embed_code ? $embed_code : $output;
+	}
+
+	/**
+	 * Display a tweet on Gravity Forms' single entry screen
+	 *
+	 * @param string   $display_value The value to be displayed.
+	 * @param \GF_Field $field         The Field Object.
+	 * @param array    $entry         The Entry Object.
+	 * @param array    $form          The Form Object.
+	 *
+	 * @return string If Tweet field, the oEmbedded tweet.
+	 */
+	public function filter_gf_entry_output( $display_value, $field, $entry, $form ) {
+
+		if ( 'entry_detail' !== \GFForms::get_page() ) {
+			return $display_value;
+        }
+
+		if ( 'tweet' !== $field->type ) {
+			return $display_value;
+		}
+
+		return $this->get_tweet_embed( rgar( $entry, $field->id ), $entry['id'], $entry['form_id'], $field->id );
 	}
 
 	/**
@@ -106,20 +131,20 @@ class GF_Field_Tweet extends \GF_Field_Website {
 	 *
 	 * @return string|false HTML string of embedded tweet, or false if not fetchable.
 	 */
-	protected function get_tweet_embed( $context, $use_cache = true, $set_cache = true ) {
+	protected function get_tweet_embed( $value, $entry_id, $form_id, $field_id, $use_cache = true, $set_cache = true ) {
 
-		$meta_key = self::get_tweet_cache_meta_key( $context->field->field->formId, $context->field->ID );
+		$meta_key = self::get_tweet_cache_meta_key( $form_id, $field_id );
 
 		if ( $use_cache ) {
 
-			$cached_output = \gform_get_meta( $context->entry['id'], $meta_key );
+			$cached_output = \gform_get_meta( $entry_id, $meta_key );
 
 			if ( $cached_output ) {
 				return $cached_output;
 			}
 		}
 
-		$value = wp_oembed_get( $context->value );
+		$value = wp_oembed_get( $value );
 
 		// Fetching oEmbed failed. Return original value.
 		if ( ! $value ) {
@@ -127,7 +152,7 @@ class GF_Field_Tweet extends \GF_Field_Website {
 		}
 
 		if ( $set_cache ) {
-			\gform_add_meta( $context->entry['id'], $meta_key, $value, $context->entry['form_id'] );
+			\gform_add_meta( $entry_id, $meta_key, $value, $form_id );
 		}
 
 		return $value;
