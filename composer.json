@@ -1,0 +1,17 @@
+{
+	"name": "gravitykit/social-fields",
+	"type": "wordpress-plugin",
+	"description": "Validate social profile fields and embed tweets for Gravity Forms.",
+	"license": "GPL-2.0-or-later",
+	"require": {
+		"php": ">=7.2"
+	},
+	"require-dev": {
+		"yoast/phpunit-polyfills": "^1.1"
+	},
+	"config": {
+		"platform": {
+			"php": "7.4"
+		}
+	}
+}

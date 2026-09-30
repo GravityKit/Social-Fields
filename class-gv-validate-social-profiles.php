@@ -34,6 +34,9 @@ class Validate_Social_Profiles {
 		// 1 - Tie our validation function to the 'gform_validation' hook
 		add_filter( 'gform_validation', array( $this, 'validate_form' ) );
 
+		// Fields inside a Repeater are not in $form['fields']; Gravity Forms validates them once per row here.
+		add_filter( 'gform_field_validation', array( $this, 'validate_repeater_sub_field' ), 10, 4 );
+
 		add_filter( 'gravityview/social_fields/profile/twitter/is_valid', array( $this, 'is_valid_twitter' ), 10, 2 );
 
 		add_filter( 'gravityview/social_fields/profile/facebook/is_valid', array( $this, 'is_valid_facebook' ), 10, 2 );
@@ -247,6 +250,78 @@ class Validate_Social_Profiles {
 
 		// 15 - Return the validation result
 		return $validation_result;
+	}
+
+	/**
+	 * Validates a field inside a Repeater, once per row.
+	 *
+	 * Gravity Forms runs `gform_field_validation` for each sub-field in each Repeater row, passing that
+	 * row's value. Top-level fields are left to validate_form(), so no field is checked twice.
+	 *
+	 * @param array     $result {
+	 *     @type bool   $is_valid Whether the value is valid so far.
+	 *     @type string $message  The validation message.
+	 * }
+	 * @param mixed     $value  The value submitted for this row.
+	 * @param array     $form   The form being validated.
+	 * @param \GF_Field $field  The field being validated.
+	 *
+	 * @return array The validation result.
+	 */
+	public function validate_repeater_sub_field( $result, $value, $form, $field ) {
+
+		$already_invalid = empty( $result['is_valid'] );
+
+		if ( $already_invalid ) {
+			return $result;
+		}
+
+		$is_top_level_field = $this->is_top_level_field( $form, $field );
+
+		if ( $is_top_level_field ) {
+			return $result;
+		}
+
+		$validate_key = $this->get_field_validation_class( $field );
+
+		if ( ! $validate_key ) {
+			return $result;
+		}
+
+		// Social profile values are single strings; a multi-input field has nothing to check.
+		if ( ! is_string( $value ) ) {
+			return $result;
+		}
+
+		$is_valid = $this->is_valid( $validate_key, $value );
+
+		if ( $is_valid ) {
+			return $result;
+		}
+
+		$result['is_valid'] = false;
+		$result['message']  = ! empty( $field['errorMessage'] ) ? $field['errorMessage'] : $this->get_invalid_message( $validate_key );
+
+		return $result;
+	}
+
+	/**
+	 * Checks whether a field sits directly in the form, rather than inside a Repeater.
+	 *
+	 * @param array     $form  The form.
+	 * @param \GF_Field $field The field.
+	 *
+	 * @return bool True when the field is in the form's top-level fields.
+	 */
+	private function is_top_level_field( $form, $field ) {
+
+		foreach ( (array) rgar( $form, 'fields' ) as $top_level_field ) {
+			if ( (string) rgar( $top_level_field, 'id' ) === (string) $field['id'] ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
