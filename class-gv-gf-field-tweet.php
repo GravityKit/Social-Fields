@@ -133,6 +133,11 @@ class GF_Field_Tweet extends \GF_Field_Website {
 	 */
 	protected function get_tweet_embed( $value, $entry_id, $form_id, $field_id, $use_cache = true, $set_cache = true ) {
 
+		// A field inside a Repeater can hand over an array of row values; oEmbed only takes one URL.
+		if ( ! is_string( $value ) ) {
+			return false;
+		}
+
 		$meta_key = self::get_tweet_cache_meta_key( $form_id, $field_id );
 
 		if ( $use_cache ) {
