@@ -30,4 +30,3 @@ Fields inside a Gravity Forms Repeater are validated too, row by row: each row w
 #### develop
 
 * Fixed: Twitter and Facebook account validation now also checks fields inside a Gravity Forms Repeater field, row by row. Before, those fields were never checked.
-* Fixed: A Tweet field inside a Repeater can no longer cause a fatal error when its value is embedded.
