@@ -22,3 +22,12 @@ Facebook verification requests are cached for a week.
 * `kws_gf_is_valid_{$key}` - Hook into this filter to validate different social networks defined in `kws_gf_validate_social_accounts`. Returns boolean. `kws_gf_is_valid_twitter` and `kws_gf_is_valid_facebook` are set by the plugin already, but you can also hook in.
 * `kws_gf_validate_social_accounts` Array of social networks to check. Lowercase.
 * `kws_gf_validate_social_invalid_message` Array of error message strings for the social network. Set key to be the same as the `kws_gf_validate_social_accounts` key. If there's an error message specified in the field, it will be used instead.
+
+Fields inside a Gravity Forms Repeater are validated too, row by row: each row with an invalid account shows its own error.
+
+### Changelog
+
+#### develop
+
+* Fixed: Twitter and Facebook account validation now also checks fields inside a Gravity Forms Repeater field, row by row. Before, those fields were never checked.
+* Fixed: A Tweet field inside a Repeater can no longer cause a fatal error when its value is embedded.
